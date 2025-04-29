@@ -2,6 +2,13 @@ from django.shortcuts import render
 from django.views.generic.list import ListView
 from fire.models import Locations, Incident, FireStation
 
+from django.db import connection
+from django.http import JsonResponse
+from django.db.models.functions import ExtractMonth
+ 
+from django.db.models import Count
+from datetime import datetime
+
 
 class HomePageView(ListView):
     model = Locations
@@ -19,6 +26,25 @@ class ChartView(ListView):
     def get_queryset(self, *args, **kwargs):
         pass
 
+def PieCountbySeverity(request):
+     query = '''
+     SELECT severity_level, COUNT(*) as count
+     FROM fire_incident
+     GROUP BY severity_level
+     '''
+     data = {}
+     with connection.cursor() as cursor:
+         cursor.execute(query)
+         rows = cursor.fetchall()
+ 
+     if rows:
+         # Construct the dictionary with severity level as keys and count as values
+         data = {severity: count for severity, count in rows}
+     else:
+         data = {}
+ 
+     return JsonResponse(data)
+
 
 def map_station(request):
     fireStations = FireStation.objects.values('name', 'latitude', 'longitude')
@@ -33,3 +59,18 @@ def map_station(request):
         'fireStation': fireStation_list,  
     }
     return render(request, 'map_station.html', context)
+
+def map_incident(request):
+     fireIncidents = Locations.objects.values('name', 'latitude', 'longitude')
+ 
+     for fs in fireIncidents:
+         fs['latitude'] = float(fs['latitude'])
+         fs['longitude'] = float(fs['longitude'])
+ 
+     fireIncidents_list = list(fireIncidents)  # Corrected variable name
+ 
+     context = {
+         'fireIncidents': fireIncidents_list,  # Corrected variable name
+     }
+ 
+     return render(request, 'map_incident.html', context)
